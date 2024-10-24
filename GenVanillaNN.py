@@ -207,7 +207,7 @@ if __name__ == '__main__':
         gen = GenVanillaNN(targetVideoSke, loadFromFile=False)
         gen.train(n_epoch)
     else:
-        gen = GenVanillaNN(targetVideoSke, loadFromFile=True)    # load from file        
+        gen = GenVanillaNN(targetVideoSke, loadFromFile=True)    # load from file
 
 
     # Test with a second video

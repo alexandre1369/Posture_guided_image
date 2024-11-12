@@ -25,7 +25,7 @@ class DanceDemo:
             self.generator = GenNeirest(self.target)
         elif typeOfGen==2:         # VanillaNN
             print("Generator: GenSimpleNN")
-            self.generator = GenVanillaNN( self.target, loadFromFile=True, optSkeOrImage=1)
+            self.generator = GenVanillaNN( self.target, loadFromFile=False, optSkeOrImage=1)
         # elif typeOfGen==3:         # VanillaNN
         #     print("Generator: GenSimpleNN")
         #     self.generator = GenVanillaNN( self.target, loadFromFile=True, optSkeOrImage=2)

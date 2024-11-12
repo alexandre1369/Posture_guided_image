@@ -216,6 +216,7 @@ if __name__ == '__main__':
         # Train
         gen = GenVanillaNN(targetVideoSke, loadFromFile=False)
         gen.train(n_epoch)
+        torch.save(gen, "data/Dance/DanceGenVanillaFromSke.pth")
     else:
         gen = GenVanillaNN(targetVideoSke, loadFromFile=True)    # load from file
 

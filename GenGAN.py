@@ -26,31 +26,26 @@ class Discriminator(nn.Module):
         super().__init__()
         self.num_gpu = num_gpu
         self.model = nn.Sequential(
-            # input is (nc) x 64 x 64
-            nn.ConvTranspose2d(3, 64, 4, 2, 1, bias=False),
+            nn.Conv2d(3, 64, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(128, 64, 4, 2, 1, bias=False),
             nn.BatchNorm2d(64),
-            nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4
-            nn.ConvTranspose2d(64, 32, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(32),
-            nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
-            nn.ConvTranspose2d(32, 16, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(64, 16, 4, 2, 1, bias=False),
             nn.BatchNorm2d(16),
-            nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
-            nn.ConvTranspose2d(16, 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(8),
-            nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d(8, 3, 4, 2, 1, bias=False),
-            nn.Tanh()
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(16, 1, 4, 2, 1, bias=False),
+            nn.Sigmoid() 
         )
 
     def forward(self, x):
         """Forward pass for the Discriminator."""
         #print("Discriminator: x=", x.shape)
-        return self.model(x)
+        x = self.model(x)
+        return x.view(-1, 1).squeeze(1)
     
 
 
@@ -73,7 +68,7 @@ class GenGAN():
                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ])
         self.dataset = VideoSkeletonDataset(videoSke, ske_reduced=True, target_transform=tgt_transform)
-        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=4, shuffle=True)
+        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=32, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
             print("GenGAN: Load=", self.filename, "   Current Working Directory=", os.getcwd())
             self.netG = torch.load(self.filename)
@@ -86,11 +81,11 @@ class GenGAN():
         self.netG = self.netG.to(device)
         self.netD = self.netD.to(device)
         
-        criterion = torch.nn.MSELoss().to(device)  # Déplacer aussi les critères de perte
+        criterion = torch.nn.BCELoss().to(device)  # Déplacer aussi les critères de perte
 
         # Optimizers for Generator and Discriminator
         optimizerG = torch.optim.SGD(self.netG.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-5)
-        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.0002, betas=(0.5, 0.999), weight_decay=1e-5)
+        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.001, betas=(0.5, 0.999), weight_decay=1e-5)
 
         for epoch in range(n_epochs):
             running_loss_G = 0.0
@@ -101,30 +96,40 @@ class GenGAN():
                 ske, image = data
                 ske = ske.to(device)
                 image = image.to(device)
+
+                real_output = self.netD(image)
+                real_loss = criterion(real_output, torch.ones_like(real_output, device=device))
+                optimizerD.zero_grad()
+                real_loss.backward()
                 
                 noise = torch.randn(ske.size(0), 26, 1, 1, device=device)
                 generate_image = self.netG(noise)
 
                 # Train Discriminator
-                real_output = self.netD(image)
+
+
                 fake_output = self.netD(generate_image.detach())
-                
-                real_loss = criterion(real_output, torch.ones_like(real_output, device=device))
                 fake_loss = criterion(fake_output, torch.zeros_like(fake_output, device=device))
-                discrimatr_loss = real_loss + fake_loss
-                
-                optimizerD.zero_grad()
-                discrimatr_loss.backward()
+                fake_loss.backward()
                 optimizerD.step()
 
+                # print("Fake output ", fake_output)
+                # print("real_output ones_like ", torch.ones_like(real_output, device=device))
+                discrimatr_loss = real_loss + fake_loss
+
+                generator_loss = criterion(fake_output, torch.ones_like(fake_output, device=device))
+                # print("real loss", real_loss)
+                # print("fake loss", fake_loss)
+                # print("discrimatr_loss", discrimatr_loss.item())
+
                 # Generate new noise for the generator
-                noise = torch.randn(ske.size(0), 26, 1, 1, device=device)
-                generate_image = self.netG(noise)
-                fake_output = self.netD(generate_image)
+                # noise = torch.randn(ske.size(0), 26, 1, 1, device=device)
+                # generate_image = self.netG(noise)
+                # fake_output = self.netD(generate_image)
                 
                 # Train Generator
                 optimizerG.zero_grad()
-                generator_loss = criterion(fake_output, torch.ones_like(fake_output, device=device))
+                
                 generator_loss.backward()
                 optimizerG.step()
 
@@ -132,11 +137,11 @@ class GenGAN():
                 running_loss_D += discrimatr_loss.item()
                 running_loss_G += generator_loss.item()
                 
-                if i % 2000 == 1999:  # Print every 2000 mini-batches
-                    print(f'[{epoch + 1}, {i + 1:5d}] '
-                        f'D Loss: {running_loss_D / 2000:.3f} | G Loss: {running_loss_G / 2000:.3f}')
-                    running_loss_D = 0.0
-                    running_loss_G = 0.0
+                # if i % 2000 == 1999:  # Print every 2000 mini-batches
+                print(f'[{epoch + 1}, {i + 1:5d}] '
+                    f'D Loss: {running_loss_D / 2000} | G Loss: {running_loss_G / 2000}')
+                running_loss_D = 0.0
+                running_loss_G = 0.0
 
             print(f'Epoch {epoch + 1}/{n_epochs} finished')
             
@@ -185,7 +190,7 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False)
-        gen.train(50) #5) #200)
+        gen.train(5) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file
 

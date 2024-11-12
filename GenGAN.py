@@ -49,7 +49,7 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         """Forward pass for the Discriminator."""
-        print("Discriminator: x=", x.shape)
+        #print("Discriminator: x=", x.shape)
         return self.model(x)
     
 
@@ -73,14 +73,21 @@ class GenGAN():
                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ])
         self.dataset = VideoSkeletonDataset(videoSke, ske_reduced=True, target_transform=tgt_transform)
-        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=16, shuffle=True)
+        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=4, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
             print("GenGAN: Load=", self.filename, "   Current Working Directory=", os.getcwd())
             self.netG = torch.load(self.filename)
 
     def train(self, n_epochs=200):
-        criterion = torch.nn.MSELoss()
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {device}")
         
+        # Déplacer les modèles sur le bon device
+        self.netG = self.netG.to(device)
+        self.netD = self.netD.to(device)
+        
+        criterion = torch.nn.MSELoss().to(device)  # Déplacer aussi les critères de perte
+
         # Optimizers for Generator and Discriminator
         optimizerG = torch.optim.SGD(self.netG.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-5)
         optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.0002, betas=(0.5, 0.999), weight_decay=1e-5)
@@ -90,30 +97,34 @@ class GenGAN():
             running_loss_D = 0.0
             
             for i, data in enumerate(self.dataloader, 0):
-                ske, image = data  # Assuming labels aren't necessary
-                noise = torch.randn(ske.size(0), 26, 1, 1)
+                # Déplacer les données sur le bon device
+                ske, image = data
+                ske = ske.to(device)
+                image = image.to(device)
+                
+                noise = torch.randn(ske.size(0), 26, 1, 1, device=device)
                 generate_image = self.netG(noise)
 
                 # Train Discriminator
                 real_output = self.netD(image)
                 fake_output = self.netD(generate_image.detach())
                 
-                real_loss = criterion(real_output, torch.ones_like(real_output))
-                fake_loss = criterion(fake_output, torch.zeros_like(fake_output))
+                real_loss = criterion(real_output, torch.ones_like(real_output, device=device))
+                fake_loss = criterion(fake_output, torch.zeros_like(fake_output, device=device))
                 discrimatr_loss = real_loss + fake_loss
                 
                 optimizerD.zero_grad()
                 discrimatr_loss.backward()
                 optimizerD.step()
-                
-                noise = torch.randn(ske.size(0), 26, 1, 1)
+
+                # Generate new noise for the generator
+                noise = torch.randn(ske.size(0), 26, 1, 1, device=device)
                 generate_image = self.netG(noise)
-                fake_output = self.netD(generate_image.detach())
+                fake_output = self.netD(generate_image)
                 
                 # Train Generator
                 optimizerG.zero_grad()
-                generator_loss = criterion(fake_output, torch.ones_like(fake_output))
-                
+                generator_loss = criterion(fake_output, torch.ones_like(fake_output, device=device))
                 generator_loss.backward()
                 optimizerG.step()
 
@@ -127,18 +138,30 @@ class GenGAN():
                     running_loss_D = 0.0
                     running_loss_G = 0.0
 
+            print(f'Epoch {epoch + 1}/{n_epochs} finished')
+            
+        print('Finished Training')
 
-            print('Finished Training')
 
 
 
-
-    def generate(self, ske):           # TP-TODO
-        """ generator of image from skeleton """
-        ske_t = torch.from_numpy( ske.__array__(reduced=True).flatten() )
+    def generate(self, ske):
+        """ Generator of image from skeleton """
+        
+        # Convert skeleton to torch tensor
+        ske_t = torch.from_numpy(ske.__array__(reduced=True).flatten())
         ske_t = ske_t.to(torch.float32)
-        ske_t = ske_t.reshape(1,Skeleton.reduced_dim,1,1) # ske.reshape(1,Skeleton.full_dim,1,1)
+        
+        # Reshape to match generator's input dimensions
+        ske_t = ske_t.reshape(1, Skeleton.reduced_dim, 1, 1)
+        
+        # Ensure the tensor is on the same device as the model
+        ske_t = ske_t.to(next(self.netG.parameters()).device)
+        
+        # Pass through the generator
         normalized_output = self.netG(ske_t)
+        
+        # Convert output tensor to image
         res = self.dataset.tensor2image(normalized_output[0])
         return res
 
@@ -162,7 +185,7 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False)
-        gen.train(4) #5) #200)
+        gen.train(50) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file
 

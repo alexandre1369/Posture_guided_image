@@ -10,10 +10,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from PIL import Image
-from Skeleton import Skeleton
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.io import read_image
+
+from Skeleton import Skeleton
 from VideoReader import VideoReader
 from VideoSkeleton import VideoSkeleton
 
@@ -79,14 +80,23 @@ class VideoSkeletonDataset(Dataset):
 
 
     def tensor2image(self, normalized_image):
-        numpy_image = normalized_image.detach().numpy()
-        # Réorganiser les dimensions (C, H, W) en (H, W, C)
+        # Move tensor to CPU and convert to NumPy
+        numpy_image = normalized_image.detach().cpu().numpy()
+
+        # Rearrange dimensions from (C, H, W) to (H, W, C)
         numpy_image = np.transpose(numpy_image, (1, 2, 0))
-        # passage a des images cv2 pour affichage
+
+        # Convert to CV2 format (BGR) for display
         numpy_image = cv2.cvtColor(np.array(numpy_image), cv2.COLOR_RGB2BGR)
-        denormalized_image = numpy_image * np.array([0.5, 0.5, 0.5]) + np.array([0.5, 0.5, 0.5])
-        denormalized_output = denormalized_image * 1
+
+        # Denormalize the image: reverse normalization assuming original was in range [-1, 1]
+        denormalized_image = numpy_image * 0.5 + 0.5  # Scale back to [0, 1]
+
+        # Ensure the values are in a valid range for image representation (e.g., 0-255 for uint8)
+        denormalized_output = (denormalized_image * 255).astype(np.uint8)
+
         return denormalized_output
+
 
 
 

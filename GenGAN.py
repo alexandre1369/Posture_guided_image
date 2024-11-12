@@ -96,7 +96,7 @@ class GenGAN():
 
                 # Train Discriminator
                 real_output = self.netD(image)
-                fake_output = self.netD(generate_image)
+                fake_output = self.netD(generate_image.detach())
                 
                 real_loss = criterion(real_output, torch.ones_like(real_output))
                 fake_loss = criterion(fake_output, torch.zeros_like(fake_output))
@@ -105,7 +105,11 @@ class GenGAN():
                 optimizerD.zero_grad()
                 discrimatr_loss.backward()
                 optimizerD.step()
-
+                
+                noise = torch.randn(ske.size(0), 26, 1, 1)
+                generate_image = self.netG(noise)
+                fake_output = self.netD(generate_image.detach())
+                
                 # Train Generator
                 optimizerG.zero_grad()
                 generator_loss = criterion(fake_output, torch.ones_like(fake_output))

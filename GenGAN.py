@@ -34,7 +34,10 @@ class Discriminator(nn.Module):
             nn.Conv2d(128, 64, 4, 2, 1, bias=False),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, 16, 4, 2, 1, bias=False),
+            nn.Conv2d(64, 32, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(32, 16, 4, 2, 1, bias=False),
             nn.BatchNorm2d(16),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(16, 1, 4, 2, 1, bias=False),
@@ -68,7 +71,7 @@ class GenGAN():
                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ])
         self.dataset = VideoSkeletonDataset(videoSke, ske_reduced=True, target_transform=tgt_transform)
-        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=32, shuffle=True)
+        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=64, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
             print("GenGAN: Load=", self.filename, "   Current Working Directory=", os.getcwd())
             self.netG = torch.load(self.filename)
@@ -84,7 +87,10 @@ class GenGAN():
         criterion = torch.nn.BCELoss().to(device)  # Déplacer aussi les critères de perte
 
         # Optimizers for Generator and Discriminator
-        optimizerG = torch.optim.SGD(self.netG.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-5)
+        real_label = 1.
+        fake_label = 0.
+
+        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.001,betas=(0.5, 0.999), weight_decay=1e-5)
         optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.001, betas=(0.5, 0.999), weight_decay=1e-5)
 
         for epoch in range(n_epochs):
@@ -96,10 +102,11 @@ class GenGAN():
                 ske, image = data
                 ske = ske.to(device)
                 image = image.to(device)
-
+                
+                self.netD.zero_grad()
+                label = torch.full((image.size(0),), real_label, dtype=torch.float, device=device)                
                 real_output = self.netD(image)
-                real_loss = criterion(real_output, torch.ones_like(real_output, device=device))
-                optimizerD.zero_grad()
+                real_loss = criterion(real_output, label)
                 real_loss.backward()
                 
                 noise = torch.randn(ske.size(0), 26, 1, 1, device=device)
@@ -107,17 +114,22 @@ class GenGAN():
 
                 # Train Discriminator
 
-
+                label.fill_(fake_label)
                 fake_output = self.netD(generate_image.detach())
-                fake_loss = criterion(fake_output, torch.zeros_like(fake_output, device=device))
+                fake_loss = criterion(fake_output, label)
                 fake_loss.backward()
-                optimizerD.step()
 
                 # print("Fake output ", fake_output)
                 # print("real_output ones_like ", torch.ones_like(real_output, device=device))
                 discrimatr_loss = real_loss + fake_loss
+                optimizerD.step()
 
-                generator_loss = criterion(fake_output, torch.ones_like(fake_output, device=device))
+                self.netG.zero_grad()
+                label.fill_(real_label)
+
+                fake_output = self.netD(generate_image)
+
+                generator_loss = criterion(fake_output, label)
                 # print("real loss", real_loss)
                 # print("fake loss", fake_loss)
                 # print("discrimatr_loss", discrimatr_loss.item())
@@ -128,9 +140,8 @@ class GenGAN():
                 # fake_output = self.netD(generate_image)
                 
                 # Train Generator
-                optimizerG.zero_grad()
-                
                 generator_loss.backward()
+                
                 optimizerG.step()
 
                 # Accumulate running loss
@@ -190,7 +201,8 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False)
-        gen.train(5) #5) #200)
+        gen.train(50) #5) #200)
+        torch.save(gen, 'data/Dance/DanceGenGAN.pth')
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file
 

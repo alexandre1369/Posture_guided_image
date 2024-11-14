@@ -74,7 +74,7 @@ class GenGAN():
         self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=64, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
             print("GenGAN: Load=", self.filename, "   Current Working Directory=", os.getcwd())
-            self.netG = torch.load(self.filename)
+            self.netG.load_state_dict(torch.load(self.filename))
 
     def train(self, n_epochs=200):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -154,9 +154,16 @@ class GenGAN():
                 running_loss_D = 0.0
                 running_loss_G = 0.0
 
+                if(epoch % 10 == 0):
+                    # nouvelle_taille = (256, 256) 
+                    # img = cv2.resize(generate_image, nouvelle_taille)
+                    # cv2.imshow(f'Generated image {epoch}', generate_image)
+                    torch.save(self.netG.state_dict(), f'data/Dance/DanceGenGAN{epoch}.pth')
+
             print(f'Epoch {epoch + 1}/{n_epochs} finished')
             
         print('Finished Training')
+        torch.save(self.netG.state_dict(), 'data/Dance/DanceGenGAN.pth')
 
 
 
@@ -201,8 +208,7 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False)
-        gen.train(50) #5) #200)
-        torch.save(gen, 'data/Dance/DanceGenGAN.pth')
+        gen.train(5) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file
 

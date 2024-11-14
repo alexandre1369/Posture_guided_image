@@ -198,7 +198,7 @@ class GenVanillaNN():
 if __name__ == '__main__':
     force = False
     optSkeOrImage = 2           # use as input a skeleton (1) or an image with a skeleton drawed (2)
-    n_epoch = 20  # 200
+    n_epoch = 200  # 200
     train = 1 #False
     #train = True
 

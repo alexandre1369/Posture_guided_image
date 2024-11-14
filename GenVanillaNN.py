@@ -164,10 +164,7 @@ class GenVanillaNN():
         if loadFromFile and os.path.isfile(self.filename):
             print("GenVanillaNN: Load=", self.filename)
             print("GenVanillaNN: Current Working Directory: ", os.getcwd())
-            self.netG = torch.load(self.filename)
-        else:
-            self.train(n_epochs=20)
-
+            self.netG.load_state_dict(torch.load(self.filename))
 
     def train(self, n_epochs=20):
         optim = torch.optim.Adam(self.netG.parameters(), lr=0.0002,weight_decay=1e-5)
@@ -180,6 +177,9 @@ class GenVanillaNN():
                 loss.backward()
                 optim.step()
                 print('epoch:', epoch, 'loss:', loss.item())
+
+        torch.save(self.netG.state_dict(), "data/Dance/DanceGenVanillaFromSke.pth")
+
                 
 
 
@@ -218,7 +218,6 @@ if __name__ == '__main__':
         # Train
         gen = GenVanillaNN(targetVideoSke, loadFromFile=False)
         gen.train(n_epoch)
-        torch.save(gen, "data/Dance/DanceGenVanillaFromSke.pth")
     else:
         gen = GenVanillaNN(targetVideoSke, loadFromFile=True)    # load from file
 

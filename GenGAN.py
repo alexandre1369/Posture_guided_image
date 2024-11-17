@@ -90,8 +90,8 @@ class GenGAN():
         real_label = 1.
         fake_label = 0.
 
-        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.001,betas=(0.5, 0.999), weight_decay=1e-5)
-        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.001, betas=(0.5, 0.999), weight_decay=1e-5)
+        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.001,betas=(0.5, 0.999))
+        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.001, betas=(0.5, 0.999))
 
         for epoch in range(n_epochs):
             running_loss_G = 0.0
@@ -150,15 +150,15 @@ class GenGAN():
                 
                 # if i % 2000 == 1999:  # Print every 2000 mini-batches
                 print(f'[{epoch + 1}, {i + 1:5d}] '
-                    f'D Loss: {running_loss_D / 2000} | G Loss: {running_loss_G / 2000}')
+                    f'D Loss: {running_loss_D} | G Loss: {running_loss_G}')
                 running_loss_D = 0.0
                 running_loss_G = 0.0
 
-                if(epoch % 10 == 0):
-                    # nouvelle_taille = (256, 256) 
-                    # img = cv2.resize(generate_image, nouvelle_taille)
-                    # cv2.imshow(f'Generated image {epoch}', generate_image)
-                    torch.save(self.netG.state_dict(), f'data/Dance/DanceGenGAN{epoch}.pth')
+                # if(epoch % 10 == 0):
+                #     # nouvelle_taille = (256, 256) 
+                #     # img = cv2.resize(generate_image, nouvelle_taille)
+                #     # cv2.imshow(f'Generated image {epoch}', generate_image)
+                #     torch.save(self.netG.state_dict(), f'data/Dance/DanceGenGAN{epoch}.pth')
 
             print(f'Epoch {epoch + 1}/{n_epochs} finished')
             
@@ -187,6 +187,15 @@ class GenGAN():
         # Convert output tensor to image
         res = self.dataset.tensor2image(normalized_output[0])
         return res
+    
+        # ske_t = self.dataset.preprocessSkeleton(ske)
+        # ske_t_batch = ske_t.unsqueeze(0)        # make a batch
+        # ske_t_batch =  ske_t_batch.to(device)
+        # normalized_output = self.netG(ske_t_batch)
+        # normalized_output =  torch.Tensor.cpu(normalized_output)
+        # print(normalized_output.shape)
+        # res = self.dataset.tensor2image(normalized_output[0])       # get image 0 from the batch
+        # return res
 
 
 
@@ -208,7 +217,7 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False)
-        gen.train(5) #5) #200)
+        gen.train(75) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file
 

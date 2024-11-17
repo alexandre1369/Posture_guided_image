@@ -41,8 +41,10 @@ Modifier la valeur de train en `1` pour entrainer le modèle et `0` pour utilise
 
 ## Ce que nous avons fait
 
-`GenVanillaNN`
+`GenVanillaNN`: On utilise un modèle de génération convolutif qui prend les données de squelette et produit une image représentant la posture correspondante.
 
 `GenGAN` : L'idée du GAN est de réaliser un `discriminator` qui pourra détecter quand une image généré est vrai ou pas. Dans notre `discriminator` nous réalisons une suite de couche Conv2d en montant jusqu'a 128 puis redescendon progressivement pour finir avec une couche 16 1 puis une fonction d'activation Sigmoid. 
 
 Le train entraine sur plusieurs époques. Il alterne entre l’entraînement d’un discriminateur, qui apprend à différencier les images réelles des images générées, et un générateur, qui essaie de créer des images suffisamment réalistes pour tromper le discriminateur. À chaque époque, le code calcule les pertes (erreurs) des deux réseaux.
+
+Pour réaliser le gan nous nous sommes principalement basé sur ce tuto [DCGAN- PyTorch](https://pytorch.org/tutorials/beginner/dcgan_faces_tutorial.html)

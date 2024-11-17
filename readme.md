@@ -1,8 +1,42 @@
+# Posture guided image
 
-# Objectif de ce code
-(Ce code est indépendant de tout le reste du dépôt)
+## Comment run le code avec les réseaux entrainés
 
-À partir d'une vidéo d'une personne source et d'une autre d'une personne, notre objectif est de générer une nouvelle vidéo de la cible effectuant les mêmes mouvements que la source. 
+Dans le fichier `DanceDemo.py`, modifier la variable `GEN_TYPE` pour :
 
-[Allez voir le sujet du TP ici](http://alexandre.meyer.pages.univ-lyon1.fr/m2-apprentissage-profond-image/am/tp_dance/)
+    - 1 : Nearest 
+    - 3 : GenVanilla (avec le meilleur réseau) 
+    - 4 : GenGan  (avec le meilleur réseau) 
 
+## Comment entrainer les réseaux 
+
+Dans le fichier `GenGAN.py` :
+```python
+    if True:    # train or load
+        # Train
+        gen = GenGAN(targetVideoSke, False)
+        gen.train(75) #5) #200)
+    else:
+        gen = GenGAN(targetVideoSke, loadFromFile=True) 
+```
+
+Modifier la valeur en `True` pour entrainer le modèle et `False` pour utiliser le meilleur. Attention, en entrainant, vous écraserez le meilleur réseau.
+
+
+Dans le fichier `GenVanillaNN.py`  :
+```python
+    train = 1 #False
+    .
+    .
+    .
+    if train:
+        # Train
+        gen = GenVanillaNN(targetVideoSke, loadFromFile=False)
+        gen.train(n_epoch)
+    else:
+        gen = GenVanillaNN(targetVideoSke, loadFromFile=True)    # load from file
+```
+
+Modifier la valeur de train en `1` pour entrainer le modèle et `0` pour utiliser le meilleur. Attention, en entrainant, vous écraserez le meilleur réseau.
+
+## Ce que nous avons fait
